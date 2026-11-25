@@ -18,15 +18,15 @@ import java.util.Random;
 
 public class GraveyardAdventure extends JPanel implements KeyListener {
 
-    // ------------------------------------------------------------------ resolution
+    //resolution
     static final int VIEW_W = 256, VIEW_H = 192;   // internal pixel resolution
     static final int START_SCALE = 3;               // window starts at 768 x 576
     static final int TILE = 16, MW = 64, MH = 48;   // tile size and map size (in tiles)
 
-    // ------------------------------------------------------------------ tile types
+    // tile types
     static final int GRASS = 0, WATER = 1, DIRT = 2, COBBLE = 3, FENCE = 5;
 
-    // ------------------------------------------------------------------ palette
+    // palette
     static final Color GRASS_C = new Color(0x3A6B3E), GRASS_DARK = new Color(0x2B5430),
             GRASS_LIGHT = new Color(0x4F8A4A);
     static final Color WATER_C = new Color(0x264E5A), WATER_DARK = new Color(0x1B3A45),
@@ -42,7 +42,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
     static final Color SHADOW = new Color(0, 0, 0, 70);
     static final Color NIGHT = new Color(10, 12, 44, 110);
 
-    // ------------------------------------------------------------------ sprites
+    //  sprites
     // Each character in a sprite row is one pixel. '.' = transparent. See pal().
     static final String[] SPR_HERO = {          // hooded swordsman, 10 x 14
             "...hhhh...",
@@ -140,246 +140,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
         g.fillRect(x, y, w, h);
     }
 
-    // ------------------------------------------------------------------ entities
-    /**
-     * ABSTRACTION: Entity describes what every object in the graveyard has and can do.
-     * It is abstract, so only its subclasses can be created.
-     *
-     * ENCAPSULATION: position, size and animation clock are private and are changed
-     * only through methods that reject invalid numbers.
-     */
-    static abstract class Entity {
-        private double x, y;               // x, y = position of the entity's feet
-        private final int halfWidth;       // half of the footprint width (used for collision)
-        private double animTime;           // seconds this entity has been alive (drives animation)
-
-        protected Entity(int halfWidth) {
-            this.halfWidth = halfWidth;
-        }
-
-        public double getX() { return x; }
-        public double getY() { return y; }
-        public int getHalfWidth() { return halfWidth; }
-        public double getAnimTime() { return animTime; }
-
-        public void setX(double x) {
-            if (Double.isFinite(x)) this.x = x;
-        }
-
-        public void setY(double y) {
-            if (Double.isFinite(y)) this.y = y;
-        }
-
-        public void setPosition(double x, double y) {
-            if (Double.isFinite(x) && Double.isFinite(y)) {
-                this.x = x;
-                this.y = y;
-            }
-        }
-
-        /** Distance between the feet of two entities. */
-        public double distanceTo(Entity other) {
-            return Math.hypot(other.x - x, other.y - y);
-        }
-
-        /** True when this entity is solid and a body with the given half width at (px, py) would hit it. */
-        public boolean blocksFoot(double px, double py, int otherHalfWidth) {
-            return isSolid() && Math.abs(px - x) < halfWidth + otherHalfWidth && Math.abs(py - y) < 3;
-        }
-
-        /** Solid entities (gravestones, the shrine) cannot be walked through. */
-        public boolean isSolid() { return false; }
-
-        /** Called once per frame. Subclasses extend it (POLYMORPHISM) and call super.update(). */
-        public void update(double dt, GraveyardAdventure game) {
-            animTime += dt;
-        }
-
-        public abstract String getEntityType();
-        public abstract String getDisplayName();
-        public abstract void draw(Graphics2D g, int camX, int camY);
-
-        /** Small oval under the feet, shared by every entity (INHERITANCE). */
-        protected void drawShadow(Graphics2D g, int camX, int camY, int halfWidth) {
-            g.setColor(SHADOW);
-            g.fillOval((int) getX() - halfWidth - camX, (int) getY() - 2 - camY, halfWidth * 2, 4);
-        }
-    }
-
-    /** The character controlled by the player. */
-    static class Player extends Entity {
-        static final int MAX_HP = 3;
-        private int hp = MAX_HP;
-        private final double speed = 70;     // pixels per second
-        private double inputX, inputY;       // set by the game from the keyboard
-        private boolean facingLeft;
-
-        public Player() { super(4); }
-
-        public int getHealth() { return hp; }
-        public void setHealth(int health) { hp = Math.max(0, Math.min(MAX_HP, health)); }
-        public double getSpeed() { return speed; }
-
-        /** Direction the player wants to walk this frame (each between -1 and 1). */
-        public void setInput(double ix, double iy) {
-            inputX = ix;
-            inputY = iy;
-            if (ix < 0) facingLeft = true;
-            else if (ix > 0) facingLeft = false;
-        }
-
-        public boolean isMoving() { return inputX != 0 || inputY != 0; }
-
-        @Override
-        public void update(double dt, GraveyardAdventure game) {
-            super.update(dt, game);
-            if (isMoving()) game.tryMove(this, inputX * speed * dt, inputY * speed * dt);
-        }
-
-        @Override public String getEntityType() { return "player"; }
-        @Override public String getDisplayName() { return "Graveyard Hero"; }
-
-        @Override
-        public void draw(Graphics2D g, int camX, int camY) {
-            boolean step = isMoving() && ((int) (getAnimTime() * 8) % 2 == 1);   // alternate legs while walking
-            drawShadow(g, camX, camY, 5);
-            drawSprite(g, step ? SPR_HERO_WALK : SPR_HERO,
-                    (int) getX() - 5 - camX, (int) getY() - 14 - camY, facingLeft);
-        }
-    }
-
-    /** A graveyard enemy: a skeleton that wanders around the spot where it was placed. */
-    static class Monster extends Entity {
-        private int hp = 2;
-        private final double speed = 22;
-        private final double wanderRadius;
-        private final Random rng = new Random();
-        private double homeX, homeY;
-        private boolean homeSet;
-        private double dirX, dirY, decideTimer;
-        private boolean facingLeft;
-
-        public Monster(double wanderRadius) {
-            super(4);
-            this.wanderRadius = wanderRadius;
-        }
-
-        public int getHealth() { return hp; }
-        public boolean isAlive() { return hp > 0; }
-        public void takeDamage(int amount) { hp = Math.max(0, hp - Math.max(0, amount)); }
-
-        @Override
-        public void update(double dt, GraveyardAdventure game) {
-            super.update(dt, game);
-            if (!homeSet) { homeX = getX(); homeY = getY(); homeSet = true; }
-
-            decideTimer -= dt;
-            if (decideTimer <= 0) chooseDirection();
-
-            if (dirX != 0 || dirY != 0) {
-                boolean moved = game.tryMove(this, dirX * speed * dt, dirY * speed * dt);
-                if (!moved) decideTimer = 0;                 // bumped into something: pick a new way
-                if (dirX < 0) facingLeft = true;
-                else if (dirX > 0) facingLeft = false;
-            }
-        }
-
-        private void chooseDirection() {
-            decideTimer = 1.0 + rng.nextDouble() * 1.5;
-            double fromHome = Math.hypot(getX() - homeX, getY() - homeY);
-            if (fromHome > wanderRadius) {                   // too far away: walk back toward home
-                dirX = Integer.signum((int) Math.round(homeX - getX()));
-                dirY = Integer.signum((int) Math.round(homeY - getY()));
-            } else if (rng.nextInt(4) == 0) {                // sometimes just stand still
-                dirX = 0;
-                dirY = 0;
-            } else {
-                dirX = rng.nextInt(3) - 1;
-                dirY = rng.nextInt(3) - 1;
-            }
-            if (dirX != 0 && dirY != 0) { dirX *= 0.7071; dirY *= 0.7071; }
-        }
-
-        @Override public String getEntityType() { return "monster"; }
-        @Override public String getDisplayName() { return "Skeleton"; }
-
-        @Override
-        public void draw(Graphics2D g, int camX, int camY) {
-            boolean walking = dirX != 0 || dirY != 0;
-            boolean step = walking && ((int) (getAnimTime() * 5) % 2 == 1);
-            drawShadow(g, camX, camY, 5);
-            drawSprite(g, step ? SPR_SKELETON_WALK : SPR_SKELETON,
-                    (int) getX() - 5 - camX, (int) getY() - 12 - camY, facingLeft);
-        }
-    }
-
-    /** A gravestone decoration. Three different shapes, chosen by "variant". */
-    static class Prop extends Entity {
-        private final int variant;
-
-        public Prop(int variant) {
-            super(5);
-            this.variant = Math.floorMod(variant, 3);
-        }
-
-        @Override public boolean isSolid() { return true; }
-        @Override public String getEntityType() { return "prop"; }
-        @Override public String getDisplayName() { return "Gravestone"; }
-
-        @Override
-        public void draw(Graphics2D g, int camX, int camY) {
-            int px = (int) getX() - 5 - camX, py = (int) getY() - 12 - camY;
-            drawShadow(g, camX, camY, 6);
-            if (variant == 0) {                                  // cross gravestone
-                fill(g, STONE_DARK, px, py + 1, 10, 11);
-                fill(g, STONE, px + 1, py + 1, 8, 10);
-                fill(g, STONE, px + 2, py, 6, 1);
-                fill(g, STONE_DARK, px + 4, py + 3, 2, 6);
-                fill(g, STONE_DARK, px + 2, py + 5, 6, 2);
-            } else if (variant == 1) {                           // rounded stone with carved lines
-                fill(g, STONE_DARK, px + 1, py + 2, 8, 10);
-                fill(g, STONE, px + 2, py + 2, 6, 9);
-                fill(g, STONE, px + 3, py + 1, 4, 1);
-                fill(g, STONE_DARK, px + 3, py + 4, 4, 1);
-                fill(g, STONE_DARK, px + 3, py + 6, 4, 1);
-                fill(g, STONE_DARK, px + 3, py + 8, 4, 1);
-            } else {                                             // low, wide slab
-                fill(g, STONE_DARK, px, py + 6, 10, 6);
-                fill(g, STONE, px + 1, py + 6, 8, 5);
-                fill(g, STONE_DARK, px + 2, py + 8, 6, 1);
-            }
-        }
-    }
-
-    /** The lantern shrine (saving will be added later). */
-    static class Shrine extends Entity {
-        private boolean lit = true;
-
-        public Shrine() { super(3); }
-
-        public boolean isLit() { return lit; }
-        public void setLit(boolean lit) { this.lit = lit; }
-
-        @Override public boolean isSolid() { return true; }
-        @Override public String getEntityType() { return "shrine"; }
-        @Override public String getDisplayName() { return "Lantern Shrine"; }
-
-        @Override
-        public void draw(Graphics2D g, int camX, int camY) {
-            int px = (int) getX() - camX, py = (int) getY() - camY;
-            drawShadow(g, camX, camY, 4);
-            fill(g, BROWN, px - 1, py - 12, 2, 12);       // post
-            fill(g, BROWN, px - 4, py - 19, 8, 8);        // lantern frame
-            if (lit) {
-                boolean flicker = (int) (getAnimTime() * 6) % 3 == 0;
-                fill(g, flicker ? new Color(0xFFD878) : GOLD, px - 3, py - 18, 6, 6);   // flickering glow
-            } else {
-                fill(g, STONE_DARK, px - 3, py - 18, 6, 6);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------ state
+    // state
     enum Screen { TITLE, PLAYING }
 
     private final int[][] map = new int[MW][MH];
@@ -392,7 +153,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
     private double time;
     private long lastNanos;
 
-    // ------------------------------------------------------------------ construction
+    // construction
     public GraveyardAdventure() {
         setPreferredSize(new Dimension(VIEW_W * START_SCALE, VIEW_H * START_SCALE));
         setBackground(Color.BLACK);
@@ -416,7 +177,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
         }).start();
     }
 
-    // ------------------------------------------------------------------ map
+    // map
     /** Basic graveyard: fence border, grass, two swamp ponds, dirt crossroads, cobble plaza. */
     void buildMap() {
         for (int x = 0; x < MW; x++)
@@ -496,7 +257,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
         g.dispose();
     }
 
-    // ------------------------------------------------------------------ entities
+    // entities
     void placeEntities() {
         int cx = MW / 2 * TILE, cy = MH / 2 * TILE;
         player.setPosition(cx + 8, cy + 8);          // start on the plaza
@@ -530,7 +291,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
         return n;
     }
 
-    // ------------------------------------------------------------------ collision
+    // collision
     boolean solidAt(double px, double py) {
         int tx = (int) Math.floor(px / TILE), ty = (int) Math.floor(py / TILE);
         if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return true;
@@ -565,7 +326,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
         return moved;
     }
 
-    // ------------------------------------------------------------------ update
+    // update
     boolean down(int code) {
         return code < keys.length && keys[code];
     }
@@ -656,7 +417,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
         drawText(g, s, cx - fm.stringWidth(s) / 2, y, c);
     }
 
-    // ------------------------------------------------------------------ input
+    // input
     @Override
     public void keyPressed(KeyEvent e) {
         int k = e.getKeyCode();
@@ -678,7 +439,7 @@ public class GraveyardAdventure extends JPanel implements KeyListener {
     @Override
     public void keyTyped(KeyEvent e) { }
 
-    // ------------------------------------------------------------------ main
+    // main
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             JFrame f = new JFrame("Graveyard Adventure");
