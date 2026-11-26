@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 
-public class PixelAdventure extends JPanel implements KeyListener {
+public class GraveyardAdventure extends JPanel implements KeyListener {
 
     // ------------------------------------------------------------------ settings
     static final int VIEW_W = 256, VIEW_H = 192;   // internal pixel resolution
@@ -268,7 +268,7 @@ public class PixelAdventure extends JPanel implements KeyListener {
     private boolean title = true;                        // true while the start page is showing
     private long lastNanos;
     // -------------------------------------------------------------- construction
-    public PixelAdventure() {
+    public GraveyardAdventure() {
         setPreferredSize(new Dimension(VIEW_W * START_SCALE, VIEW_H * START_SCALE));
         setBackground(Color.BLACK);
         setFocusable(true);
@@ -1632,7 +1632,7 @@ public class PixelAdventure extends JPanel implements KeyListener {
         SwingUtilities.invokeLater(() -> {
             JFrame f = new JFrame("Graveyard Adventure");
             f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            PixelAdventure game = new PixelAdventure();
+            GraveyardAdventure game = new GraveyardAdventure();
             f.add(game);
             f.pack();
             f.setLocationRelativeTo(null);
