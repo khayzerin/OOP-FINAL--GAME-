@@ -1,40 +1,40 @@
 import java.awt.Color;
-import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 
-/** A gravestone decoration. Three different shapes, chosen by "variant". */
 public class Prop extends Entity {
-    private final int variant;
+    private int kind, ox, oy;      // kind (P_* in PixelAdventure), image origin offset
+    private double hw, hd;         // collision half-width and depth
+    private BufferedImage img;
+    private Color tint;            // glow colour (null = no light)
+    private int lightR;            // glow radius
 
-    public Prop(int variant) {
-        super(5);
-        this.variant = Math.floorMod(variant, 3);
+    public int getKind() { return kind; }
+    public void setKind(int kind) { this.kind = kind; }
+
+    public BufferedImage getImg() { return img; }
+    public int getOx() { return ox; }
+    public int getOy() { return oy; }
+    /** Sets the picture and the point on it that sits on the prop's feet position. */
+    public void setSprite(BufferedImage img, int ox, int oy) {
+        this.img = img;
+        this.ox = ox;
+        this.oy = oy;
     }
 
-    @Override public boolean isSolid() { return true; }
+    public double getHw() { return hw; }
+    public double getHd() { return hd; }
+    public void setHitbox(double hw, double hd) {
+        this.hw = hw;
+        this.hd = hd;
+    }
+
+    public Color getTint() { return tint; }
+    public int getLightR() { return lightR; }
+    public void setLight(Color tint, int lightR) {
+        this.tint = tint;
+        this.lightR = lightR;
+    }
+
     @Override public String getEntityType() { return "prop"; }
-    @Override public String getDisplayName() { return "Gravestone"; }
-
-    @Override
-    public void draw(Graphics2D g, int camX, int camY) {
-        int px = (int) getX() - 5 - camX, py = (int) getY() - 12 - camY;
-        drawShadow(g, camX, camY, 6);
-        if (variant == 0) {                                  // cross gravestone
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px, py + 1, 10, 11);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE, px + 1, py + 1, 8, 10);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE, px + 2, py, 6, 1);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 4, py + 3, 2, 6);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 2, py + 5, 6, 2);
-        } else if (variant == 1) {                           // rounded stone with carved lines
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 1, py + 2, 8, 10);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE, px + 2, py + 2, 6, 9);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE, px + 3, py + 1, 4, 1);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 3, py + 4, 4, 1);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 3, py + 6, 4, 1);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 3, py + 8, 4, 1);
-        } else {                                             // low, wide slab
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px, py + 6, 10, 6);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE, px + 1, py + 6, 8, 5);
-            GraveyardAdventure.fill(g, GraveyardAdventure.STONE_DARK, px + 2, py + 8, 6, 1);
-        }
-    }
+    @Override public String getDisplayName() { return "Graveyard decoration"; }
 }
